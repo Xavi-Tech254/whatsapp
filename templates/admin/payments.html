@@ -1,0 +1,43 @@
+{% extends 'admin/base.html' %}
+{% block title %}Payments{% endblock %}
+{% block page_title %}Payments{% endblock %}
+{% block content %}
+<div class="sec-hdr"><h2>Verified Payments</h2></div>
+<div class="table-wrap" style="margin-bottom:24px">
+<table>
+<thead><tr><th>User</th><th>Item</th><th>Amount</th><th>Code</th><th>Date</th></tr></thead>
+<tbody>
+{% for p in payments %}
+<tr>
+  <td>{{p.user.username if p.user else '—'}}</td>
+  <td>{{p.category.name if p.category else '—'}}</td>
+  <td style="color:var(--accent);font-weight:600">Ksh {{"%.0f"|format(p.amount)}}</td>
+  <td><code style="color:var(--accent);font-size:.75rem">{{p.mpesa_code}}</code></td>
+  <td style="color:var(--muted);font-size:.75rem">{{p.created_at.strftime('%d %b %H:%M')}}</td>
+</tr>
+{% else %}
+<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No payments yet</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<div class="sec-hdr"><h2>Received Mpesa SMS</h2></div>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Code</th><th>Amount</th><th>From</th><th>Received</th><th>Status</th></tr></thead>
+<tbody>
+{% for s in mpesa_sms %}
+<tr>
+  <td><code style="color:var(--accent2);font-size:.75rem">{{s.mpesa_code}}</code></td>
+  <td style="color:var(--accent)">Ksh {{"%.0f"|format(s.amount)}}</td>
+  <td style="color:var(--muted);font-size:.75rem">{{s.sender_phone or '—'}}</td>
+  <td style="color:var(--muted);font-size:.75rem">{{s.received_at.strftime('%d %b %H:%M')}}</td>
+  <td><span class="pill {{'pill-g' if s.used else 'pill-b'}}">{{'Used' if s.used else 'Pending'}}</span></td>
+</tr>
+{% else %}
+<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No SMS received yet</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends 'admin/base.html' %}
+{% block title %}Categories{% endblock %}
+{% block page_title %}Categories & Content{% endblock %}
+{% block extra_css %}
+<style>
+.node{margin-bottom:8px;}
+.node-header{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;}
+.node-header.has-file{border-left:3px solid var(--accent2);}
+.node-header.has-link{border-left:3px solid var(--blue);}
+.node-header.is-folder{border-left:3px solid var(--accent);}
+.node-icon{font-size:1.2rem;flex-shrink:0;}
+.node-name{flex:1;font-weight:600;font-size:.95rem;word-break:break-word;}
+.node-price{font-size:.82rem;color:var(--accent);font-weight:700;flex-shrink:0;}
+.node-actions{display:flex;gap:5px;flex-shrink:0;}
+.node-children{padding-left:14px;margin-top:6px;border-left:1px dashed var(--border);margin-left:10px;padding-top:6px;}
+.add-form{background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:14px;margin-top:8px;margin-bottom:8px;display:none;}
+.add-form.open{display:block;}
+.add-form h4{font-family:'Syne',sans-serif;font-size:.8rem;color:var(--accent);margin-bottom:10px;}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px;}
+.fg label{font-size:.75rem;color:var(--muted);}
+.type-sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.type-btn{padding:8px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:.78rem;font-weight:500;transition:all .2s;}
+.type-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(110,231,183,.1);}
+.file-area{display:none;}
+.file-area.show{display:block;}
+.btn-add-sub{background:rgba(245,158,11,.08);color:var(--accent2);border:1.5px dashed var(--accent2);width:100%;margin-top:6px;padding:9px;border-radius:8px;cursor:pointer;font-size:.82rem;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.btn-add-sub:hover{background:rgba(245,158,11,.18);}
+.inactive{opacity:.4;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="sec-hdr">
+  <h2>📂 Manage Categories</h2>
+  <button class="btn btn-primary" onclick="toggleForm('root-form')">➕ Add Category</button>
+</div>
+<div class="add-form" id="root-form">
+  <h4>➕ New Root Category</h4>
+  <div class="form-row">
+    <div class="fg" style="flex:2"><label>Name *</label><input type="text" id="rn" placeholder="e.g. Setbook Guides"></div>
+    <div class="fg" style="flex:0 0 80px"><label>Icon</label><input type="text" id="ri" placeholder="📚" maxlength="2"></div>
+  </div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Type:</div>
+  <div class="type-sel" id="rt-sel">
+    <div class="type-btn active" onclick="selType('r','folder',this)">📁 Folder</div>
+    <div class="type-btn" onclick="selType('r','file',this)">📎 File</div>
+    <div class="type-btn" onclick="selType('r','link',this)">🔗 Link</div>
+  </div>
+  <div class="file-area" id="r-fa">
+    <div class="form-row">
+      <div class="fg"><label>Price (Ksh) 0=Free</label><input type="number" id="rp" value="0" min="0"></div>
+      <div class="fg"><label>Link (if type=link)</label><input type="text" id="rf" placeholder="https://..."></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="btn btn-primary btn-sm" onclick="submitRoot()">Add</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleForm('root-form')">Cancel</button>
+  </div>
+</div>
+<div id="tree">
+{% if not categories %}
+<div style="text-align:center;padding:30px;color:var(--muted);border:1px dashed var(--border);border-radius:10px">No categories yet. Click Add Category to start.</div>
+{% endif %}
+{% for cat in categories %}{{ render_node_tpl(cat,0) }}{% endfor %}
+</div>
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:420px;">
+    <h3 style="font-family:'Syne',sans-serif;margin-bottom:16px;font-size:1rem">Edit Category</h3>
+    <input type="hidden" id="em-id">
+    <div class="form-row">
+      <div class="fg" style="flex:2"><label>Name</label><input type="text" id="em-name"></div>
+      <div class="fg" style="flex:0 0 70px"><label>Icon</label><input type="text" id="em-icon" maxlength="2"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Price (Ksh)</label><input type="number" id="em-price" min="0"></div>
+      <div class="fg"><label>Status</label><select id="em-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+    </div>
+    <div class="form-group"><label>Link</label><input type="text" id="em-link" placeholder="https://..."></div>
+    <div class="form-group"><label>Replace File</label><input type="file" id="em-file"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-primary btn-sm" onclick="submitEdit()">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const nodeTypes={};
+function toggleForm(id){const f=document.getElementById(id);if(f)f.classList.toggle('open');}
+function selType(prefix,type,el){nodeTypes[prefix]=type;el.closest('.type-sel').querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');const fa=document.getElementById(prefix==='r'?'r-fa':`cfa-${prefix}`);if(fa)fa.className=type!=='folder'?'file-area show':'file-area';}
+async function submitRoot(){const name=document.getElementById('rn').value.trim();if(!name)return alert('Name required!');const fd=new FormData();fd.append('name',name);fd.append('icon',document.getElementById('ri').value.trim()||'📁');fd.append('cat_type',nodeTypes['r']||'folder');fd.append('price',document.getElementById('rp').value||0);fd.append('link',document.getElementById('rf').value.trim());const res=await fetch('/admin/categories/add',{method:'POST',body:fd});const d=await res.json();if(d.success)location.reload();else alert('Error: '+(d.error||'Unknown'));}
+async function submitSub(pid){const name=document.getElementById(`cn-${pid}`).value.trim();if(!name)return alert('Name required!');const fd=new FormData();fd.append('name',name);fd.append('parent_id',pid);fd.append('icon',document.getElementById(`ci-${pid}`).value.trim()||'📄');fd.append('cat_type',nodeTypes[pid]||'folder');fd.append('price',document.getElementById(`cp-${pid}`)?.value||0);fd.append('link',document.getElementById(`cl-${pid}`)?.value.trim()||'');const fileEl=document.getElementById(`cf-${pid}`);if(fileEl&&fileEl.files[0])fd.append('file',fileEl.files[0]);const res=await fetch('/admin/categories/add',{method:'POST',body:fd});const d=await res.json();if(d.success)location.reload();else alert('Error: '+(d.error||'Unknown'));}
+function openEdit(id,name,icon,price,link,active){document.getElementById('em-id').value=id;document.getElementById('em-name').value=name;document.getElementById('em-icon').value=icon;document.getElementById('em-price').value=price;document.getElementById('em-link').value=link||'';document.getElementById('em-active').value=active;document.getElementById('edit-modal').style.display='flex';}
+function closeEdit(){document.getElementById('edit-modal').style.display='none';}
+async function submitEdit(){const id=document.getElementById('em-id').value;const fd=new FormData();fd.append('name',document.getElementById('em-name').value);fd.append('icon',document.getElementById('em-icon').value);fd.append('price',document.getElementById('em-price').value);fd.append('link',document.getElementById('em-link').value);fd.append('is_active',document.getElementById('em-active').value);const fileEl=document.getElementById('em-file');if(fileEl.files[0])fd.append('file',fileEl.files[0]);const res=await fetch(`/admin/categories/${id}/edit`,{method:'POST',body:fd});const d=await res.json();if(d.success){closeEdit();location.reload();}else alert('Error saving');}
+async function deleteNode(id){if(!confirm('Deactivate this category?'))return;const res=await fetch(`/admin/categories/${id}/delete`,{method:'POST'});const d=await res.json();if(d.success)location.reload();}
+</script>
+{% endblock %}

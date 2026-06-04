@@ -1,0 +1,17 @@
+{% extends 'admin/base.html' %}
+{% block title %}Broadcast{% endblock %}
+{% block page_title %}Broadcast Message{% endblock %}
+{% block content %}
+<div style="max-width:500px">
+<div class="card">
+  <h3 style="font-family:'Syne',sans-serif;margin-bottom:16px;font-size:1rem">📢 Send to All Users</h3>
+  <form method="POST">
+    <div class="form-group">
+      <label>Message</label>
+      <textarea name="message" rows="6" placeholder="Type your message here...&#10;&#10;Supports *bold*, _italic_ WhatsApp formatting"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">📤 Send Broadcast</button>
+  </form>
+</div>
+</div>
+{% endblock %}

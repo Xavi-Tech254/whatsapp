@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pay — {{ bot_name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 32px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+  }
+
+  .brand {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+  }
+
+  .brand span { color: #00c17c; }
+
+  .divider {
+    width: 40px;
+    height: 3px;
+    background: #00c17c;
+    border-radius: 2px;
+    margin: 14px auto 24px;
+  }
+
+  .item-name {
+    font-size: 1rem;
+    color: #555;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .amount {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 4px;
+  }
+
+  .amount span {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #888;
+    vertical-align: super;
+  }
+
+  .currency-note {
+    font-size: 0.78rem;
+    color: #aaa;
+    margin-bottom: 32px;
+  }
+
+  .btn-pay {
+    display: block;
+    width: 100%;
+    background: #00c17c;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-pay:hover { background: #00a86b; }
+  .btn-pay:active { transform: scale(0.98); }
+
+  .btn-pay:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+  }
+
+  .secure {
+    margin-top: 20px;
+    font-size: 0.73rem;
+    color: #bbb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .secure svg { width: 12px; height: 12px; fill: #bbb; }
+
+  .success-msg {
+    display: none;
+    margin-top: 20px;
+    background: #e8fdf4;
+    border: 1px solid #00c17c;
+    border-radius: 10px;
+    padding: 14px;
+    color: #007a4d;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+
+  .error-msg {
+    display: none;
+    margin-top: 20px;
+    background: #fff0f0;
+    border: 1px solid #f87171;
+    border-radius: 10px;
+    padding: 14px;
+    color: #c00;
+    font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">{{ bot_name | replace(' ', '<span> </span>') | safe }}</div>
+  <div class="divider"></div>
+  <div class="item-name">{{ category.icon }} {{ category.name }}</div>
+  <div class="amount"><span>KES </span>{{ "{:,.0f}".format(category.price) }}</div>
+  <div class="currency-note">Kenyan Shillings</div>
+
+  <button class="btn-pay" id="payBtn" onclick="payNow()">Continue to Pay</button>
+
+  <div class="success-msg" id="successMsg">
+    ✅ Payment received! Go back to WhatsApp to get your product.
+  </div>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="secure">
+    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+    Secured by Paystack
+  </div>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+  const PUBLIC_KEY = "{{ paystack_public_key }}";
+  const amount     = {{ (category.price * 100) | int }};  // Paystack uses kobo/cents
+  const ref        = "{{ ref }}";
+  const userNumber = "{{ user_number }}";
+  const catId      = "{{ category.id }}";
+  const verifyUrl  = "/paystack/verify";
+
+  function payNow() {
+    const btn = document.getElementById('payBtn');
+    btn.disabled = true;
+    btn.textContent = 'Opening payment...';
+
+    const handler = PaystackPop.setup({
+      key: PUBLIC_KEY,
+      email: userNumber + '@whatsapp.user',
+      amount: amount,
+      currency: 'KES',
+      ref: ref,
+      channels: ['mobile_money'],
+      metadata: {
+        custom_fields: [
+          { display_name: 'WhatsApp', variable_name: 'whatsapp', value: userNumber },
+          { display_name: 'Category', variable_name: 'category_id', value: catId }
+        ]
+      },
+      callback: function(response) {
+        // Verify on server
+        fetch(verifyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference: response.reference })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'ok') {
+            document.getElementById('successMsg').style.display = 'block';
+            btn.style.display = 'none';
+          } else {
+            showError(data.message || 'Verification failed. Contact support.');
+            btn.disabled = false;
+            btn.textContent = 'Continue to Pay';
+          }
+        })
+        .catch(() => {
+          showError('Network error during verification. Contact support.');
+          btn.disabled = false;
+          btn.textContent = 'Continue to Pay';
+        });
+      },
+      onClose: function() {
+        btn.disabled = false;
+        btn.textContent = 'Continue to Pay';
+      }
+    });
+
+    handler.openIframe();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+</script>
+</body>
+</html>

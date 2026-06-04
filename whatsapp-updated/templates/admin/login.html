@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dev Clin Studies — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--surface:#13131a;--border:#2a2a3a;--accent:#6ee7b7;--text:#e2e8f0;--muted:#64748b;--red:#f87171;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(110,231,183,.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(245,158,11,.05) 0%,transparent 60%);}
+.box{position:relative;z-index:1;width:360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;margin-bottom:4px;}
+.logo span{color:var(--accent);}
+.sub{color:var(--muted);font-size:0.8rem;margin-bottom:28px;}
+.form-group{margin-bottom:16px;}
+label{display:block;font-size:0.75rem;color:var(--muted);margin-bottom:5px;}
+input{width:100%;background:#1a1a24;border:1px solid var(--border);color:var(--text);padding:11px 13px;border-radius:8px;font-size:0.9rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+input:focus{border-color:var(--accent);}
+.btn{width:100%;background:var(--accent);color:#000;font-weight:700;padding:12px;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:.02em;transition:background .2s;margin-top:6px;}
+.btn:hover{background:#4ade80;}
+.err{background:#7f1d1d;border:1px solid var(--red);color:#fca5a5;padding:9px 12px;border-radius:8px;font-size:0.8rem;margin-bottom:14px;}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo"><span>Dev Clin</span> Studies</div>
+  <div class="sub">Admin Panel — Sign In</div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}<div class="err">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <form method="POST">
+    <div class="form-group"><label>Username</label><input type="text" name="username" required autofocus placeholder="admin"></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required placeholder="••••••••"></div>
+    <button type="submit" class="btn">SIGN IN →</button>
+  </form>
+</div>
+</body>
+</html>

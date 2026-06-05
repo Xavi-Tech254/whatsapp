@@ -105,13 +105,61 @@ def pay_page(cat_id, number):
     user = User.query.filter_by(whatsapp_number=number).first_or_404()
     bot_name = get_setting_val('bot_name', 'Dev Clin Studies')
     ref = f"DCLIN-{cat_id}-{number[-6:]}-{uuid.uuid4().hex[:8].upper()}"
+    flask_url = os.environ.get('FLASK_URL', '')
     return render_template('pay.html',
         category=cat,
         user_number=number,
         bot_name=bot_name,
         paystack_public_key=PAYSTACK_PUBLIC_KEY,
-        ref=ref
+        ref=ref,
+        flask_url=flask_url
     )
+
+# ── PAYSTACK CALLBACK (redirect after payment) ────────────────────────
+@app.route('/paystack/callback')
+def paystack_callback():
+    reference = request.args.get('reference', '')
+    if not reference:
+        return redirect('/')
+    try:
+        resp = req.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers={'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}'},
+            timeout=15
+        )
+        result = resp.json()
+    except:
+        return render_template('pay_result.html', success=False, message='Could not verify payment.')
+
+    if not result.get('status') or result['data']['status'] != 'success':
+        return render_template('pay_result.html', success=False, message='Payment not successful.')
+
+    tx = result['data']
+    meta = tx.get('metadata', {})
+    custom = {f['variable_name']: f['value'] for f in meta.get('custom_fields', [])}
+    whatsapp_number = str(custom.get('whatsapp', ''))
+    cat_id = custom.get('category_id', '')
+    amount_paid = tx['amount'] / 100
+    phone = tx.get('authorization', {}).get('mobile_number') or whatsapp_number
+
+    existing = Payment.query.filter_by(paystack_ref=reference).first()
+    if existing:
+        return render_template('pay_result.html', success=True, message='Payment already processed!')
+
+    user = User.query.filter_by(whatsapp_number=whatsapp_number).first()
+    cat = Category.query.get(int(cat_id)) if cat_id else None
+
+    if user and cat:
+        payment = Payment(user_id=user.id, category_id=cat.id, paystack_ref=reference,
+                         amount=amount_paid, phone_number=str(phone), verified=True)
+        db.session.add(payment)
+        sess = BotSession.query.filter_by(whatsapp_number=whatsapp_number).first()
+        if sess:
+            sess.state = 'menu'
+        db.session.commit()
+        deliver_product(user, cat, reference)
+
+    return render_template('pay_result.html', success=True, message='Payment successful! Go back to WhatsApp to get your product. 🎉')
 
 # ── PAYSTACK VERIFY (called by pay.html after payment) ────────────────
 @app.route('/paystack/verify', methods=['POST'])

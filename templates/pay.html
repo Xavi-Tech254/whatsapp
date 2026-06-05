@@ -25,46 +25,20 @@
     text-align: center;
     box-shadow: 0 8px 40px rgba(0,0,0,0.10);
   }
-  .brand {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: #111;
-    margin-bottom: 6px;
-  }
-  .divider {
-    width: 40px; height: 3px;
-    background: #00c17c;
-    border-radius: 2px;
-    margin: 14px auto 24px;
-  }
+  .brand { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #111; margin-bottom: 6px; }
+  .divider { width: 40px; height: 3px; background: #00c17c; border-radius: 2px; margin: 14px auto 24px; }
   .item-name { font-size: 1rem; color: #555; font-weight: 500; margin-bottom: 10px; }
-  .amount {
-    font-family: 'Syne', sans-serif;
-    font-size: 2.4rem; font-weight: 800; color: #111; margin-bottom: 4px;
-  }
+  .amount { font-family: 'Syne', sans-serif; font-size: 2.4rem; font-weight: 800; color: #111; margin-bottom: 4px; }
   .amount span { font-size: 1rem; font-weight: 500; color: #888; vertical-align: super; }
   .currency-note { font-size: 0.78rem; color: #aaa; margin-bottom: 32px; }
   .btn-pay {
     display: block; width: 100%;
     background: #00c17c; color: #fff; border: none;
     border-radius: 12px; padding: 16px;
-    font-family: 'DM Sans', sans-serif;
     font-size: 1rem; font-weight: 600; cursor: pointer;
-    transition: background 0.2s;
   }
-  .btn-pay:hover { background: #00a86b; }
   .btn-pay:disabled { background: #aaa; cursor: not-allowed; }
-  .secure {
-    margin-top: 20px; font-size: 0.73rem; color: #bbb;
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-  }
-  .msg {
-    display: none; margin-top: 20px; border-radius: 10px;
-    padding: 14px; font-size: 0.88rem; font-weight: 500;
-  }
-  .msg.success { background: #e8fdf4; border: 1px solid #00c17c; color: #007a4d; display: block; }
-  .msg.error { background: #fff0f0; border: 1px solid #f87171; color: #c00; display: block; }
+  .secure { margin-top: 20px; font-size: 0.73rem; color: #bbb; }
 </style>
 </head>
 <body>
@@ -74,67 +48,19 @@
   <div class="item-name">{{ category.icon }} {{ category.name }}</div>
   <div class="amount"><span>KES </span>{{ "{:,.0f}".format(category.price) }}</div>
   <div class="currency-note">Kenyan Shillings</div>
-  <button class="btn-pay" id="payBtn" onclick="payNow()">Continue to Pay</button>
-  <div class="msg" id="msg"></div>
+
+  <form method="POST" action="https://checkout.paystack.com" id="payForm">
+    <input type="hidden" name="key" value="{{ paystack_public_key }}">
+    <input type="hidden" name="email" value="user{{ user_number }}@devclinstudies.com">
+    <input type="hidden" name="amount" value="{{ (category.price * 100) | int }}">
+    <input type="hidden" name="currency" value="KES">
+    <input type="hidden" name="ref" value="{{ ref }}">
+    <input type="hidden" name="channels[]" value="mobile_money">
+    <input type="hidden" name="callback_url" value="{{ flask_url }}/paystack/callback">
+    <button type="submit" class="btn-pay">Continue to Pay</button>
+  </form>
+
   <div class="secure">🔒 Secured by Paystack</div>
 </div>
-
-<script src="https://js.paystack.co/v1/inline.js"></script>
-<script>
-  function payNow() {
-    const btn = document.getElementById('payBtn');
-    btn.disabled = true;
-    btn.textContent = 'Opening payment...';
-
-    const handler = PaystackPop.setup({
-      key: '{{ paystack_public_key }}',
-      email: 'pay{{ user_number }}@devclinstudies.com',
-      amount: {{ (category.price * 100) | int }},
-      currency: 'KES',
-      ref: '{{ ref }}',
-      channels: ['mobile_money'],
-      metadata: {
-        custom_fields: [
-          { display_name: 'WhatsApp', variable_name: 'whatsapp', value: '{{ user_number }}' },
-          { display_name: 'Category', variable_name: 'category_id', value: '{{ category.id }}' }
-        ]
-      },
-      callback: function(response) {
-        fetch('/paystack/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reference: response.reference })
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'ok') {
-            showMsg('✅ Payment received! Go back to WhatsApp to get your product.', 'success');
-            btn.style.display = 'none';
-          } else {
-            showMsg('❌ ' + (data.message || 'Verification failed. Contact support.'), 'error');
-            btn.disabled = false;
-            btn.textContent = 'Continue to Pay';
-          }
-        })
-        .catch(() => {
-          showMsg('❌ Network error. Contact support.', 'error');
-          btn.disabled = false;
-          btn.textContent = 'Continue to Pay';
-        });
-      },
-      onClose: function() {
-        btn.disabled = false;
-        btn.textContent = 'Continue to Pay';
-      }
-    });
-    handler.openIframe();
-  }
-
-  function showMsg(text, type) {
-    const el = document.getElementById('msg');
-    el.textContent = text;
-    el.className = 'msg ' + type;
-  }
-</script>
 </body>
 </html>

@@ -75,8 +75,8 @@ body::before{content:'';position:fixed;top:-30%;left:-20%;width:600px;height:600
       <div class="product-price">KES {{ "{:,.0f}".format(category.price) }}<small>One-time</small></div>
     </div>
     <div class="form-group">
-      <label>📱 M-Pesa Number</label>
-      <input type="text" id="phone" placeholder="e.g. 0743810633" inputmode="numeric" maxlength="10"/>
+      <label>📧 Email Address</label>
+      <input type="email" id="phone" placeholder="your@email.com"/>
     </div>
     <div class="error-msg" id="err"></div>
     <button class="pay-btn" id="pay-btn" onclick="sendSTK()">

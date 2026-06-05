@@ -464,3 +464,94 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Scheduler error: {e}")
     app.run(debug=True, port=5000)
+
+# ── STK PUSH ROUTE ────────────────────────────────────────────────────
+@app.route('/pay/stk', methods=['POST'])
+def pay_stk():
+    data = request.json or {}
+    phone = str(data.get('phone', '')).strip()
+    ref = data.get('ref', '')
+    cat_id = data.get('cat_id', '')
+    user_number = data.get('user_number', '')
+    if not phone or not ref:
+        return jsonify({'status': 'error', 'message': 'Missing data'}), 400
+    if phone.startswith('0'):
+        phone = '254' + phone[1:]
+    cat = Category.query.get(int(cat_id)) if cat_id else None
+    if not cat:
+        return jsonify({'status': 'error', 'message': 'Product not found'}), 404
+    user = User.query.filter_by(whatsapp_number=user_number).first()
+    if user:
+        existing = Payment.query.filter_by(paystack_ref=ref).first()
+        if not existing:
+            p = Payment(user_id=user.id, category_id=cat.id, paystack_ref=ref, amount=cat.price, phone_number=phone, verified=False)
+            db.session.add(p)
+            db.session.commit()
+    try:
+        resp = req.post(
+            'https://api.paystack.co/charge',
+            headers={'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}', 'Content-Type': 'application/json'},
+            json={
+                'email': f'user{user_number}@devclinstudies.com',
+                'amount': int(cat.price * 100),
+                'currency': 'KES',
+                'mobile_money': {'phone': phone, 'provider': 'mpesa'},
+                'reference': ref,
+                'metadata': {'custom_fields': [
+                    {'display_name': 'WhatsApp', 'variable_name': 'whatsapp', 'value': user_number},
+                    {'display_name': 'Category', 'variable_name': 'category_id', 'value': str(cat_id)}
+                ]}
+            },
+            timeout=30
+        )
+        result = resp.json()
+        print(f"STK result: {result}")
+        status = result.get('data', {}).get('status', '')
+        if result.get('status') and status in ['send_otp', 'pay_offline', 'pending', 'success']:
+            return jsonify({'status': 'success'})
+        return jsonify({'status': 'error', 'message': result.get('message', 'STK Push failed')}), 400
+    except Exception as e:
+        print(f"STK error: {e}")
+        return jsonify({'status': 'error', 'message': 'Could not reach payment server'}), 500
+
+# ── CHECK PAYMENT ─────────────────────────────────────────────────────
+@app.route('/pay/check/<ref>')
+def pay_check(ref):
+    payment = Payment.query.filter_by(paystack_ref=ref).first()
+    if payment and payment.verified:
+        return jsonify({'status': 'success', 'reference': ref})
+    try:
+        resp = req.get(
+            f'https://api.paystack.co/transaction/verify/{ref}',
+            headers={'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}'},
+            timeout=15
+        )
+        result = resp.json()
+        if result.get('status') and result.get('data', {}).get('status') == 'success':
+            tx = result['data']
+            meta = tx.get('metadata', {})
+            custom = {f['variable_name']: f['value'] for f in meta.get('custom_fields', [])}
+            wnum = custom.get('whatsapp', '')
+            cid = custom.get('category_id', '')
+            amount_paid = tx['amount'] / 100
+            phone = tx.get('authorization', {}).get('mobile_number', '')
+            user = User.query.filter_by(whatsapp_number=str(wnum)).first()
+            cat = Category.query.get(int(cid)) if cid else None
+            if user and cat:
+                p = Payment.query.filter_by(paystack_ref=ref).first()
+                if p:
+                    p.verified = True
+                else:
+                    p = Payment(user_id=user.id, category_id=cat.id, paystack_ref=ref, amount=amount_paid, phone_number=str(phone), verified=True)
+                    db.session.add(p)
+                sess = BotSession.query.filter_by(whatsapp_number=str(wnum)).first()
+                if sess:
+                    sess.state = 'menu'
+                    sess.pending_category_id = None
+                db.session.commit()
+                deliver_product(user, cat, ref)
+            return jsonify({'status': 'success', 'reference': ref})
+        return jsonify({'status': 'pending'})
+    except Exception as e:
+        print(f"Check error: {e}")
+        return jsonify({'status': 'pending'})

@@ -131,7 +131,7 @@ def pay_page(cat_id, number):
             return redirect(result['data']['authorization_url'])
     except Exception as e:
         print(f"Paystack init error: {e}")
-    return "Payment initialization failed. Please try again.", 500
+    return render_template("pay.html", category=cat, user_number=number, bot_name=get_setting_val("bot_name","Dev Clin Studies"), paystack_public_key=PAYSTACK_PUBLIC_KEY, ref=ref, flask_url=flask_url)
 
 # ── PAYSTACK CALLBACK (redirect after payment) ────────────────────────
 @app.route('/paystack/callback')

@@ -178,11 +178,8 @@ def handle_message(number, text):
             return make_response(
                 f"📦 *{selected.icon} {selected.name}*\n"
                 f"💰 Price: *Ksh {int(selected.price)}*\n\n"
-                f"Tap the button below to complete your payment.",
-                buttons=[
-                    {'id': 'PAY_NOW', 'text': '💳 Pay Now', 'url': pay_url},
-                    {'id': 'MAIN_MENU', 'text': '❌ Cancel'}
-                ]
+                f"💳 *Tap to pay:*\n{pay_url}\n\n"
+                f"Send *0* to cancel."
             )
 
         full_text = title + f"\n\n{numbered_list(cats)}"

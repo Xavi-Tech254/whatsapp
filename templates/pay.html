@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>{{ bot_name }} — Pay</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'DM Sans',sans-serif;background:#050810;color:#f0f8ff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;overflow:hidden;}
@@ -35,17 +36,6 @@ body::before{content:'';position:fixed;top:-30%;left:-20%;width:600px;height:600
 @keyframes spin{to{transform:rotate(360deg);}}
 .error-msg{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:#fca5a5;margin-top:10px;display:none;}
 .error-msg.show{display:block;}
-.waiting-state{display:none;text-align:center;}
-.waiting-state.show{display:block;}
-.waiting-icon{font-size:3rem;margin-bottom:1rem;animation:bounce 1s ease infinite;}
-@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
-.waiting-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;margin-bottom:0.5rem;}
-.waiting-msg{font-size:0.85rem;color:#64748b;line-height:1.6;margin-bottom:1.25rem;}
-.phone-box{background:#111928;border:1px solid rgba(14,165,233,0.2);border-radius:8px;padding:12px 16px;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:#0ea5e9;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:center;gap:8px;}
-.pulse{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 1s ease infinite;}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
-.confirm-btn{width:100%;padding:13px;background:transparent;border:1px solid rgba(56,189,248,0.25);color:#0ea5e9;border-radius:10px;font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;}
-.confirm-btn:hover{background:rgba(14,165,233,0.08);}
 .success-state{display:none;text-align:center;}
 .success-state.show{display:block;}
 .success-icon{width:72px;height:72px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.08));border:2px solid #22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 1.25rem;box-shadow:0 0 30px rgba(34,197,94,0.2);animation:pop 0.4s ease;}
@@ -54,7 +44,7 @@ body::before{content:'';position:fixed;top:-30%;left:-20%;width:600px;height:600
 .success-msg{font-size:0.88rem;color:#64748b;line-height:1.6;margin-bottom:1.5rem;}
 .ref-box{background:#111928;border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px;font-size:0.78rem;color:#64748b;margin-bottom:1.5rem;}
 .ref-box strong{color:#22c55e;}
-.card-form.hide,.waiting-state.hide{display:none!important;}
+.card-form.hide{display:none;}
 </style>
 </head>
 <body>
@@ -76,30 +66,14 @@ body::before{content:'';position:fixed;top:-30%;left:-20%;width:600px;height:600
     </div>
     <div class="form-group">
       <label>📧 Email Address</label>
-      <input type="email" id="phone" placeholder="your@email.com"/>
+      <input type="email" id="cust-email" placeholder="your@email.com"/>
     </div>
     <div class="error-msg" id="err"></div>
-    <button class="pay-btn" id="pay-btn" onclick="sendSTK()">
+    <button class="pay-btn" id="pay-btn" onclick="payNow()">
       <div class="spinner" id="spinner"></div>
       <span id="btn-text">📱 Pay KES {{ "{:,.0f}".format(category.price) }} via M-Pesa</span>
     </button>
     <div class="secure-note">🔒 Secured by Paystack • Direct M-Pesa STK Push</div>
-  </div>
-
-  <!-- WAITING -->
-  <div class="waiting-state" id="waiting-state">
-    <div class="waiting-icon">📱</div>
-    <div class="waiting-title">Check Your Phone!</div>
-    <div class="waiting-msg">An M-Pesa prompt has been sent to:</div>
-    <div class="phone-box"><div class="pulse"></div><span id="show-phone"></span></div>
-    <div class="waiting-msg">Enter your <strong style="color:#f0f8ff">M-Pesa PIN</strong> then tap confirm below.</div>
-    <button class="confirm-btn" id="conf-btn" onclick="checkPayment()">
-      <div class="spinner" id="conf-spinner" style="border-top-color:#0ea5e9;border-color:rgba(14,165,233,0.2);"></div>
-      <span id="conf-text">✅ I've Entered PIN — Confirm</span>
-    </button>
-    <div style="margin-top:12px;">
-      <button onclick="goBack()" style="background:none;border:none;color:#334155;font-size:0.75rem;cursor:pointer;">← Use different number</button>
-    </div>
   </div>
 
   <!-- SUCCESS -->
@@ -113,86 +87,59 @@ body::before{content:'';position:fixed;top:-30%;left:-20%;width:600px;height:600
 
 </div>
 <script>
-var REF="{{ref}}",CAT_ID="{{category.id}}",USER_NUM="{{user_number}}",chkInt=null;
+var REF="{{ ref }}", CAT_ID="{{ category.id }}", USER_NUM="{{ user_number }}";
 
-function sendSTK(){
-  var phone=document.getElementById('phone').value.trim().replace(/\s/g,'');
-  var err=document.getElementById('err');
-  if(!phone||phone.length<9){err.textContent='⚠️ Enter a valid M-Pesa number e.g. 0743810633';err.classList.add('show');return;}
-  err.classList.remove('show');
-  var fmtPhone=phone.startsWith('0')?'254'+phone.substring(1):phone;
-  var btn=document.getElementById('pay-btn');
-  btn.disabled=true;
-  document.getElementById('spinner').style.display='block';
-  document.getElementById('btn-text').textContent='Sending STK Push...';
-  fetch('/pay/stk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:fmtPhone,ref:REF,cat_id:CAT_ID,user_number:USER_NUM})})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    if(d.status==='success'){
-      document.getElementById('card-form').classList.add('hide');
-      document.getElementById('show-phone').textContent=phone;
-      document.getElementById('waiting-state').classList.add('show');
-      chkInt=setInterval(autoCheck,5000);
-    } else {
-      btn.disabled=false;
-      document.getElementById('spinner').style.display='none';
-      document.getElementById('btn-text').textContent='📱 Pay KES {{ "{:,.0f}".format(category.price) }} via M-Pesa';
-      err.textContent='⚠️ '+(d.message||'Failed to send STK Push. Try again.');
-      err.classList.add('show');
-    }
-  })
-  .catch(function(){
-    btn.disabled=false;
-    document.getElementById('spinner').style.display='none';
-    document.getElementById('btn-text').textContent='📱 Pay KES {{ "{:,.0f}".format(category.price) }} via M-Pesa';
-    err.textContent='⚠️ Network error. Please try again.';
+function payNow(){
+  var email = document.getElementById('cust-email').value.trim();
+  var err = document.getElementById('err');
+  if(!email || !email.includes('@')){
+    err.textContent = '⚠️ Please enter a valid email address';
     err.classList.add('show');
-  });
-}
+    return;
+  }
+  err.classList.remove('show');
+  var btn = document.getElementById('pay-btn');
+  btn.disabled = true;
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('btn-text').textContent = 'Opening M-Pesa...';
 
-function autoCheck(){
-  fetch('/pay/check/'+REF).then(function(r){return r.json();}).then(function(d){
-    if(d.status==='success'){clearInterval(chkInt);showSuccess(d.reference||REF);}
-  }).catch(function(){});
-}
-
-function checkPayment(){
-  clearInterval(chkInt);
-  var btn=document.getElementById('conf-btn');
-  btn.disabled=true;
-  document.getElementById('conf-spinner').style.display='block';
-  document.getElementById('conf-text').textContent='Verifying...';
-  fetch('/pay/check/'+REF).then(function(r){return r.json();}).then(function(d){
-    if(d.status==='success'){showSuccess(d.reference||REF);}
-    else{
-      btn.disabled=false;
-      document.getElementById('conf-spinner').style.display='none';
-      document.getElementById('conf-text').textContent="✅ I've Entered PIN — Confirm";
-      chkInt=setInterval(autoCheck,5000);
+  var handler = PaystackPop.setup({
+    key: '{{ paystack_public_key }}',
+    email: email,
+    amount: {{ (category.price * 100)|int }},
+    currency: 'KES',
+    ref: REF,
+    channels: ['mobile_money'],
+    metadata: {
+      custom_fields: [
+        {display_name:'WhatsApp', variable_name:'whatsapp', value:USER_NUM},
+        {display_name:'Category', variable_name:'category_id', value:CAT_ID}
+      ]
+    },
+    callback: function(response){
+      // Verify on server then show success
+      fetch('/paystack/verify', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reference: response.reference})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ showSuccess(response.reference); })
+      .catch(function(){ showSuccess(response.reference); });
+    },
+    onClose: function(){
+      btn.disabled = false;
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('btn-text').textContent = '📱 Pay KES {{ "{:,.0f}".format(category.price) }} via M-Pesa';
     }
-  }).catch(function(){
-    btn.disabled=false;
-    document.getElementById('conf-spinner').style.display='none';
-    document.getElementById('conf-text').textContent="✅ I've Entered PIN — Confirm";
   });
+  handler.openIframe();
 }
 
 function showSuccess(ref){
-  clearInterval(chkInt);
-  document.getElementById('waiting-state').classList.remove('show');
-  document.getElementById('waiting-state').classList.add('hide');
+  document.getElementById('card-form').classList.add('hide');
   document.getElementById('success-state').classList.add('show');
-  document.getElementById('pay-ref').textContent=ref;
-}
-
-function goBack(){
-  clearInterval(chkInt);
-  document.getElementById('waiting-state').classList.remove('show');
-  document.getElementById('card-form').classList.remove('hide');
-  var btn=document.getElementById('pay-btn');
-  btn.disabled=false;
-  document.getElementById('spinner').style.display='none';
-  document.getElementById('btn-text').textContent='📱 Pay KES {{ "{:,.0f}".format(category.price) }} via M-Pesa';
+  document.getElementById('pay-ref').textContent = ref;
 }
 </script>
 </body>

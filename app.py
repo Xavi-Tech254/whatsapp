@@ -103,17 +103,35 @@ def webhook():
 def pay_page(cat_id, number):
     cat = Category.query.get_or_404(cat_id)
     user = User.query.filter_by(whatsapp_number=number).first_or_404()
-    bot_name = get_setting_val('bot_name', 'Dev Clin Studies')
-    ref = f"DCLIN-{cat_id}-{number[-6:]}-{uuid.uuid4().hex[:8].upper()}"
     flask_url = os.environ.get('FLASK_URL', '')
-    return render_template('pay.html',
-        category=cat,
-        user_number=number,
-        bot_name=bot_name,
-        paystack_public_key=PAYSTACK_PUBLIC_KEY,
-        ref=ref,
-        flask_url=flask_url
-    )
+    ref = f"DCLIN-{cat_id}-{number[-6:]}-{uuid.uuid4().hex[:8].upper()}"
+    callback_url = f"{flask_url}/paystack/callback"
+    try:
+        resp = req.post(
+            'https://api.paystack.co/transaction/initialize',
+            headers={'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}', 'Content-Type': 'application/json'},
+            json={
+                'email': f'user{number}@devclinstudies.com',
+                'amount': int(cat.price * 100),
+                'currency': 'KES',
+                'reference': ref,
+                'callback_url': callback_url,
+                'channels': ['mobile_money'],
+                'metadata': {
+                    'custom_fields': [
+                        {'display_name': 'WhatsApp', 'variable_name': 'whatsapp', 'value': number},
+                        {'display_name': 'Category', 'variable_name': 'category_id', 'value': str(cat_id)}
+                    ]
+                }
+            },
+            timeout=15
+        )
+        result = resp.json()
+        if result.get('status') and result['data'].get('authorization_url'):
+            return redirect(result['data']['authorization_url'])
+    except Exception as e:
+        print(f"Paystack init error: {e}")
+    return "Payment initialization failed. Please try again.", 500
 
 # ── PAYSTACK CALLBACK (redirect after payment) ────────────────────────
 @app.route('/paystack/callback')

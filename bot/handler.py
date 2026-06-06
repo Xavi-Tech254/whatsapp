@@ -56,6 +56,7 @@ def numbered_list(cats):
     return '\n'.join(lines)
 
 def handle_message(number, text):
+    number = number.split(chr(64))[0]
     if len(number) > 20 or 'newsletter' in number or 'broadcast' in number:
         return None
     text = text.strip()

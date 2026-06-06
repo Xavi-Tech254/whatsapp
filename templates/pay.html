@@ -87,7 +87,7 @@ body::before{content:'';position:fixed;top:-30%;left:-20%;width:600px;height:600
 
 </div>
 <script>
-var REF="{{ ref }}", CAT_ID="{{ category.id }}", USER_NUM="{{ user_number }}";
+var REF="{{ ref }}".replace(/[^a-zA-Z0-9]/g,""), CAT_ID="{{ category.id }}", USER_NUM="{{ user_number }}";
 
 function payNow(){
   var email = document.getElementById('cust-email').value.trim();

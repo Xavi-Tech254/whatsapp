@@ -135,11 +135,9 @@ def handle_message(number, text):
                 db.session.commit()
                 return show_main_menu(user, bot_name, banner_url)
 
-            selected = next((c for c in cats if c.id == choice_num), None)
-            if not selected:
-                idx = choice_num - 1
-                if 0 <= idx < len(cats):
-                    selected = cats[idx]
+            idx = choice_num - 1
+if 0 <= idx < len(cats):
+    selected = cats[idx]
 
             if not selected:
                 return make_response(

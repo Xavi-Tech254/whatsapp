@@ -136,8 +136,10 @@ def handle_message(number, text):
                 return show_main_menu(user, bot_name, banner_url)
 
             idx = choice_num - 1
-if 0 <= idx < len(cats):
-    selected = cats[idx]
+            if 0 <= idx < len(cats):
+                selected = cats[idx]
+            else:
+                selected = None
 
             if not selected:
                 return make_response(

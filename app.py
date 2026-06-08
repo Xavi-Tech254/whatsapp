@@ -337,7 +337,7 @@ def edit_category(cat_id):
 @admin_required
 def delete_category(cat_id):
     cat = Category.query.get_or_404(cat_id)
-    cat.is_active = False
+    db.session.delete(cat)
     db.session.commit()
     return jsonify({'success': True})
 
